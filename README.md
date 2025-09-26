@@ -1,93 +1,93 @@
 # siot_backend
 
-
-
 ## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/sportsiot/siot_backend.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.com/sportsiot/siot_backend/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
 ## Name
-Choose a self-explaining name for your project.
+siot-backend : This includes the code and docker files for running the Sports IOT LLC database, scraper, and api components of the backend. Currently it also has a boilerplate for the websocket client on the Arduino side, but that is preliminary and will probably eventually be moved to its own repository.
 
 ## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+In order to provide updates to our internet-connected sports memorabilia devices in an automated and timely manner, we need a system to track, store, and provide these updates to the devices. This repository is currently divides into three components for the backend and one component for the devices:
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### Backend
+
+1. Scraper : This continuously gets updates from the stats.ncaa.org website, parses them, and extracts game events.
+2. DB : This database is set up to store all of the information about connected devices, teams, sports, and games.
+3. API : This component is built on top of FastAPI and provides connectivity both through regular REST endpoints and via websockets.
+
+### Device
+
+1. Arduino client : An example set of code for connecting to the API via websocket, registering the device with associated (UUID, team, sports), and then issuing async callbacks to the code using this project.
+
 
 ## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Everything is set up to run via Docker. However, during development and debugging, that often is cumbersome. So there is a single top-level docker-compose file that can be used, but I would recommend only bringing up the components that are in a pretty good state with DockerCompose and then run the rest from a terminal (inside of VSCode) for easy debugging and help from AI.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+1. Install Docker Desktop (or however you want to get Docker and DockerCompose installed)
+
+2. (If running locally install a python environment) 
+    ```
+    python3 -m venv env
+    source env/bin/activate
+    pip install --upgrade pip
+    pip install -r scraper/requirements.txt
+    pip install -r api/requirements.txt
+    ```
+
+3. Create the virtual docker network used by the services within Docker
+    ```
+    ./prepare_docker_network.sh
+    ```
+
+4. Bring up one (or more) of the services in the composite-docker-compose.yml file
+    - For the database and database admin website
+        ```
+        docker-compose -f composite-docker-compose.yml up db pgadmin
+        ```
+    - For the scraper
+        ```
+        docker-compose -f composite-docker-compose.yml up scraper
+        ```
+    - Everything
+        ```
+        docker-compose -f composite-docker-compose.yml up
+        ```
+        All the standard rules about using -d to put in daemon mode
+
+5. If running from the command line
+    - Make sure to have the python environment activated
+        ```
+        source env/bin/activate
+        ```
+    - Run a command to run the individual component
+        ```
+        cd scraper
+        python scraper
+        ```
+    - NOTE/TODO: I still don't know the right way to bring up the API, or if it is working inside/outside of Docker
 
 ## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+I feel like the scraper and the database are in pretty good shape. It seems to capture and store the game status exactly as expected. Here is a list of items by category that could be improved/added:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+- Scraper
+    1. The end of game detection isn't the best. Sometimes a game will end and the status line won't go to "Final" for quite a while. The per-sport scraper plug-ins could do a better job of detecting game end. For example, in Women's Soccer we know that they don't have stoppage time. So if the time ever gets to "2nd H 90:00" and one of the teams is ahead, we could interpret that as a win.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+- Database
+    1. Maybe add in the datetime when the game went final
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+- API (co-primary work of the 2025-2026 Capstone)
+    1. Tons of work needed to verify what is working and what isn't. Not going to make an exhaustive list.
+    2. As part of this, the websocket portion needs improved/validated considerably both on the device side (Arduino) and the API side (FastAPI+websockets)
+
+- Dashboard (primary work of the 2025-2026 Capstone)
+    1. Create a dashboard for monitoring the system
+    2. Show connected devices
+    3. Show teams being tracked, games for the day, status of the games, etc.
+    4. Give a health monitor of the scraper software (detect crashes or exceptions in the scraper system as a whole, detect exceptions in individual scrapers). May require another table in the database.
+
 
 ## License
-For open source projects, say how it is licensed.
+This code is copyright SportsIOT LLC 2025.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.

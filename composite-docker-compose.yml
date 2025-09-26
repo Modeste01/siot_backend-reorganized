@@ -1,0 +1,87 @@
+services:
+  ## Services for the database component
+  db:
+    image: postgres:17.2-bookworm
+    networks:
+      - shared-network
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: sportsiot
+    ports:
+      - "9001:5432"
+    volumes:
+      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/pgdata:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    networks:
+      - shared-network
+    depends_on:
+      - db
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: password
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "9002:80"
+    volumes:
+      - ./database/config/servers.json:/pgadmin4/servers.json
+
+  ## Services for the scraper component
+  scraper:
+    build:
+      context: ./scraper
+      dockerfile: Dockerfile
+    image: siot_scraper
+    networks:
+      - shared-network
+    volumes:
+      # Mount the directory containing the config file
+      - ./scraper/config:/app/config
+    environment:
+      # Pass the JSON file path as an environment variable
+      CONFIG_PATH: /app/config/config.json
+      NO_DB: "0"
+      PYTHONUNBUFFERED: "1"  # ensure immediate stdout/stderr flushing
+    depends_on:
+      - db
+    restart: unless-stopped
+    tty: true            # allocate TTY to further reduce buffering
+    stdin_open: true
+    # ports:
+    #   - "8080:8080" ## expose ports if needed
+
+  ## Services for the api component
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    image: siot_api
+    networks:
+      - shared-network
+    volumes:
+      # Mount the directory containing the config file
+      - ./api/config:/app/config
+    environment:
+      # Pass the JSON file path as an environment variable
+      CONFIG_PATH: /app/config/config.json
+      NO_DB: "0"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: sportsiot
+    ports:
+      - "8000:8000" ## expose ports if needed
+    depends_on:
+      - scraper
+      - db
+    restart: unless-stopped
+
+networks:
+  shared-network:
+    name: siot_network
+    external: true

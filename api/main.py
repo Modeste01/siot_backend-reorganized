@@ -7,6 +7,7 @@ import datetime
 import asyncio
 import asyncpg
 from fastapi.responses import HTMLResponse
+from fastapi.encoders import jsonable_encoder
 import httpx
 import json
 import os
@@ -15,8 +16,8 @@ import os
 # load_dotenv()
 
 DATABASE_NAME = os.getenv('DB_NAME', 'sportsiot')
-DATABASE_HOST = os.getenv('DB_HOST', 'db')
-DATABASE_PORT = os.getenv('DB_PORT', '5432')
+DATABASE_HOST = os.getenv('DB_HOST', 'localhost')
+DATABASE_PORT = os.getenv('DB_PORT', '9001')
 
 AUTH_TOKEN = 'abc123'
 from datetime import date
@@ -99,7 +100,11 @@ class WebsocketConnections:
                 continue
             if sport in sports and (school == home_team or school == away_team):
                 try:
-                    await ws.send_text(json.dumps(payload_obj))
+                    # Ensure serializable form before sending
+                    safe_payload = jsonable_encoder(payload_obj)
+                    if isinstance(safe_payload, dict) and 'time' in safe_payload and isinstance(safe_payload['time'], str):
+                        safe_payload['time'] = _normalize_time_to_z(safe_payload['time'])
+                    await ws.send_text(json.dumps(safe_payload))
                 except Exception as e:
                     print(f"WS send error for user {uid}: {e}")
                     self.disconnect(ws)
@@ -170,6 +175,7 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             uid = str(reg.get('uid', user_id))
             school = reg.get('school')
             sports = reg.get('sports', [])
+            print(f"WS register: uid={uid}, school={school}, sports={sports}")
             manager.register_preferences(uid, school, sports)
         except Exception as e:
             await websocket.send_text(json.dumps({"error": "invalid registration"}))
@@ -179,21 +185,39 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
             init_games = db.get_recent_games_for_team_by_sports(school, sports, hours=24)
         except Exception as e:
             init_games = []
-        # Normalize times to Z for clients
-        for g in init_games:
+        # Ensure JSON-serializable payload (date/datetime -> ISO strings)
+        encoded_games = jsonable_encoder(init_games)
+        # Normalize time strings to Z for clients
+        for g in encoded_games:
             if isinstance(g, dict) and 'time' in g and isinstance(g['time'], str):
                 g['time'] = _normalize_time_to_z(g['time'])
-        await websocket.send_text(json.dumps({"init": True, "games": init_games}))
+        await websocket.send_text(json.dumps({"init": True, "games": encoded_games}))
         # Now keep the socket alive, responding to pings
         while True:
-            message = await websocket.receive()
+            try:
+                message = await websocket.receive()
+            except WebSocketDisconnect:
+                # Client disconnected
+                break
+            msg_type = message.get("type")
+            if msg_type == "websocket.disconnect":
+                break
             if "bytes" in message and message["bytes"] is not None:
-                await websocket.send({"type": "websocket.pong"})  # Send Pong
-    
+                # Respond to ping-like binary frames if needed
+                try:
+                    await websocket.send({"type": "websocket.pong"})
+                except Exception:
+                    # Ignore failures when connection is closing
+                    pass
+
+    except WebSocketDisconnect:
+        # Client disconnected abruptly; just clean up
+        pass
     except Exception as e:
-            print(f"WebSocket error: {e}")
+        print(f"WebSocket error: {e}")
     finally:
-        await websocket.close()
+        # Avoid double-close; let server stack handle closing, just cleanup our state
+        manager.disconnect(websocket)
 
 
 # Dependency for device-based authentication

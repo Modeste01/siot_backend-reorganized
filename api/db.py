@@ -384,7 +384,11 @@ class Database:
 
 
     def insert_school(self, name, sport):
-        self.cur.execute("SELECT name, sport FROM school WHERE name = %s AND sport = %s", (name, sport))
+        try:
+            self.cur.execute("SELECT name, sport FROM school WHERE name = %s AND sport = %s", (name, sport))
+        except Exception:
+            self.conn.rollback()
+            self.cur.execute("SELECT name, sport FROM school WHERE name = %s AND sport = %s", (name, sport))
 
         exists = False
         rows = self.cur.fetchall()
@@ -393,9 +397,14 @@ class Database:
                 exists = True
 
         if not exists:
-            self.cur.execute("INSERT INTO school (name, sport) VALUES (%s, %s)", (name, sport))
-
-        self.conn.commit()
+            try:
+                self.cur.execute("INSERT INTO school (name, sport) VALUES (%s, %s)", (name, sport))
+                self.conn.commit()
+            except Exception:
+                self.conn.rollback()
+        else:
+            # No-op but ensure clean transaction
+            self.conn.commit()
 
     def insert_game(self, g):
         self.cur.execute(
@@ -481,20 +490,84 @@ class Database:
 
         return rows
 
-    def set_follow(self, uid: int, school: str, sport: str):
-        self.cur.execute(
-            """
-            INSERT INTO deviceuser (uid, followed_school, followed_sport)
-            VALUES (%s, %s, %s)
-            ON CONFLICT (uid, followed_school, followed_sport) DO NOTHING
-            """,
-            (uid, school, sport)
-        )
-        self.conn.commit()
+    def set_follow(self, uid: str, school: str, sport: str):
+        try:
+            self.cur.execute(
+                """
+                INSERT INTO deviceuser (uid, followed_school, followed_sport)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (uid, followed_school, followed_sport) DO NOTHING
+                """,
+                (uid, school, sport)
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
 
-    def delete_follow(self, uid: int, school: str, sport: str):
-        self.cur.execute(
-            "DELETE FROM deviceuser WHERE uid = %s AND followed_school = %s AND followed_sport = %s",
-            (uid, school, sport)
-        )
-        self.conn.commit()
+    def delete_follow(self, uid: str, school: str, sport: str):
+        try:
+            self.cur.execute(
+                "DELETE FROM deviceuser WHERE uid = %s AND followed_school = %s AND followed_sport = %s",
+                (uid, school, sport)
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    # --- Device registration and connection state ---
+    def upsert_device(self, uid: str, school: str | None):
+        try:
+            self.cur.execute(
+                """
+                INSERT INTO device (uid, school, connected, last_connect, last_seen)
+                VALUES (%s, %s, false, NULL, NOW())
+                ON CONFLICT (uid) DO UPDATE SET school = EXCLUDED.school, last_seen = NOW()
+                """,
+                (uid, school)
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def mark_connected(self, uid: str):
+        try:
+            self.cur.execute(
+                "UPDATE device SET connected = true, last_connect = NOW(), last_seen = NOW() WHERE uid = %s",
+                (uid,)
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def mark_disconnected(self, uid: str):
+        try:
+            self.cur.execute(
+                "UPDATE device SET connected = false, last_disconnect = NOW(), last_seen = NOW() WHERE uid = %s",
+                (uid,)
+            )
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+    def replace_follows(self, uid: str, school: str, sports: list[str]):
+        try:
+            # Ensure School rows exist
+            for sp in sports:
+                self.insert_school(school, sp)
+            # Remove any follows not in the new list
+            self.cur.execute(
+                "DELETE FROM deviceuser WHERE uid = %s AND followed_school = %s AND followed_sport <> ALL(%s)",
+                (uid, school, sports if sports else ['__none__'])
+            )
+            # Add (or keep) new follows
+            for sp in sports:
+                self.set_follow(uid, school, sp)
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise

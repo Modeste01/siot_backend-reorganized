@@ -12,11 +12,11 @@ CREATE table Sport(
 );
 
 CREATE table DeviceUser(
-    UID int,
-    Followed_School varchar(100),
-    Followed_Sport varchar(50),
-    Primary Key(UID, Followed_School, Followed_Sport),
-    FOREIGN KEY(Followed_School, Followed_Sport) REFERENCES School(Name, sport)
+  UID varchar(64),
+  Followed_School varchar(100),
+  Followed_Sport varchar(50),
+  Primary Key(UID, Followed_School, Followed_Sport),
+  FOREIGN KEY(Followed_School, Followed_Sport) REFERENCES School(Name, sport)
 );
 
 CREATE table Game(
@@ -63,4 +63,14 @@ CREATE TRIGGER update_notify_trigger
 AFTER UPDATE ON Game
 FOR EACH ROW
 EXECUTE FUNCTION notify_update();
+
+-- Track device registrations and connection state
+CREATE TABLE IF NOT EXISTS Device (
+  uid varchar(64) PRIMARY KEY,
+  school varchar(100),
+  connected boolean DEFAULT false,
+  last_connect timestamptz,
+  last_disconnect timestamptz,
+  last_seen timestamptz
+);
 

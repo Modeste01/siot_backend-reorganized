@@ -14,7 +14,7 @@ CREATE table Sport(
 );
 
 CREATE table DeviceUser(
-    UID int,
+    UID varchar(64),
     Followed_School varchar(100),
     Followed_Sport varchar(50),
     Primary Key(UID, Followed_School, Followed_Sport),

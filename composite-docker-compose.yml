@@ -3,7 +3,9 @@ services:
   db:
     image: postgres:17.2-bookworm
     networks:
-      - shared-network
+      shared-network:
+        aliases:
+          - db
     restart: unless-stopped
     environment:
       POSTGRES_USER: root
@@ -27,6 +29,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: password
       PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      PGADMIN_DEFAULT_SERVER_JSON_FILE: /pgadmin4/servers.json
     ports:
       - "9002:80"
     volumes:

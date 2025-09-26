@@ -54,6 +54,12 @@ class WebsocketConnections:
         if to_delete:
             self.connectionsPreferences.pop(to_delete, None)
 
+    def get_info_by_websocket(self, websocket: WebSocket):
+        for uid, info in self.connectionsPreferences.items():
+            if info.get('ws') is websocket:
+                return uid, info
+        return None, None
+
     async def broadcastAll(self, payload):
         for connections in self.activeConnections:
             await connections.send_text(payload)
@@ -109,11 +115,13 @@ class WebsocketConnections:
                     print(f"WS send error for user {uid}: {e}")
                     self.disconnect(ws)
 
-    def register_preferences(self, user_id: str, school: str, sports: list[str]):
+    def register_preferences(self, user_id: str, school: str, sports: list[str], uid: str | None = None):
         entry = self.connectionsPreferences.get(str(user_id))
         if entry is not None:
             entry['school'] = school
             entry['sports'] = sports or []
+            if uid is not None:
+                entry['uid'] = uid
             self.connectionsPreferences[str(user_id)] = entry
 
 manager = WebsocketConnections()
@@ -176,7 +184,19 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
             school = reg.get('school')
             sports = reg.get('sports', [])
             print(f"WS register: uid={uid}, school={school}, sports={sports}")
-            manager.register_preferences(uid, school, sports)
+            manager.register_preferences(user_id, school, sports, uid=uid)
+            # Persist device registration + synchronize follows
+            db_for_follow = next(get_db())
+            try:
+                db_for_follow.upsert_device(uid, school)
+                db_for_follow.mark_connected(uid)
+            except Exception as e_dev:
+                print(f"device upsert/mark_connected failed for uid={uid}: {e_dev}")
+            if school and isinstance(sports, list):
+                try:
+                    db_for_follow.replace_follows(uid, school, sports)
+                except Exception as e:
+                    print(f"replace_follows failed for uid={uid}, school={school}: {e}")
         except Exception as e:
             await websocket.send_text(json.dumps({"error": "invalid registration"}))
         # Send initial state: all games in the last 24 hours for the school across requested sports
@@ -216,7 +236,17 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
     except Exception as e:
         print(f"WebSocket error: {e}")
     finally:
-        # Avoid double-close; let server stack handle closing, just cleanup our state
+        # Best-effort mark device disconnected (capture uid before removing mapping)
+        try:
+            key_uid, info = manager.get_info_by_websocket(websocket)
+            uid_to_mark = None
+            if info is not None:
+                uid_to_mark = info.get('uid') or key_uid
+            if uid_to_mark:
+                next(get_db()).mark_disconnected(uid_to_mark)
+        except Exception as e:
+            print(f"mark_disconnected failed: {e}")
+        # Now remove mapping and close tracking
         manager.disconnect(websocket)
 
 
@@ -378,16 +408,20 @@ def delete_game_by_id(game_id: int, db=Depends(get_db)):
 @app.post("/deviceuser/follow")
 def follow_school(payload: dict, db=Depends(get_db), role=Depends(verify_device_auth)):
     try:
-        uid = int(payload['uid'])
+        uid = str(payload['uid'])
         school = payload['followed_school']
         sport = payload['followed_sport']
+        try:
+            db.insert_school(school, sport)
+        except Exception as e_ins:
+            print(f"insert_school warning for school={school}, sport={sport}: {e_ins}")
         db.set_follow(uid, school, sport)
         return {"message": "Follow set"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.delete("/deviceuser/follow")
-def unfollow_school(uid: int, followed_school: str, followed_sport: str, db=Depends(get_db), role=Depends(verify_device_auth)):
+def unfollow_school(uid: str, followed_school: str, followed_sport: str, db=Depends(get_db), role=Depends(verify_device_auth)):
     try:
         db.delete_follow(uid, followed_school, followed_sport)
         return {"message": "Follow deleted"}

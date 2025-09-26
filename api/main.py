@@ -157,7 +157,7 @@ def _normalize_time_to_z(val: str) -> str:
 # Removed unused /user_id/ routes that referenced undefined variables.
 
 @app.websocket("/ws/{user_id}")
-async def websocket_endpoint(websocket: WebSocket, user_id: int):
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
     await manager.connect(websocket, user_id)
     try:
         headers = websocket.headers

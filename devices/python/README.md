@@ -24,7 +24,7 @@ Configure via environment variables (defaults shown):
 
 - `SIOT_HOST=localhost`
 - `SIOT_PORT=8000`
-- `SIOT_UID=<numeric id>`  # IMPORTANT: current API expects an integer user_id in /ws/{user_id}
+- `SIOT_UID=<uuid or id>`  # WebSocket path now accepts string IDs; default is a UUID
 - `SIOT_TOKEN=abc123`  # must match API `AUTH_TOKEN`
 - `SIOT_SCHOOL=BYU`
 - `SIOT_SPORTS=Basketball,Football`
@@ -53,8 +53,8 @@ async def on_win(g: GameInfo):
     print("win", g)
 
 client = SIOTPythonClient(
-    url="ws://localhost:8000/ws/12345",
-    uid="12345",  # use a numeric uid unless the API is updated to accept strings
+    url="ws://localhost:8000/ws/your-uuid",
+    uid="your-uuid",
     school="BYU",
     sports=["Basketball","Football"],
     token="abc123",

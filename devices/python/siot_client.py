@@ -161,12 +161,7 @@ async def main():
     # Read configuration from env or defaults
     host = os.getenv("SIOT_HOST", "localhost")
     port = int(os.getenv("SIOT_PORT", "8000"))
-    raw_uid = os.getenv("SIOT_UID")
-    if raw_uid and raw_uid.isdigit():
-        uid = raw_uid
-    else:
-        # Server expects /ws/{user_id} with an integer; generate a 6-digit numeric id by default
-        uid = str(int.from_bytes(os.urandom(3), 'big') % 900000 + 100000)
+    uid = os.getenv("SIOT_UID") or str(uuid.uuid4())
     token = os.getenv("SIOT_TOKEN", "abc123")  # must match API AUTH_TOKEN
     school = os.getenv("SIOT_SCHOOL", "Montana")
     sports = [s for s in os.getenv("SIOT_SPORTS", "Soccer (W)").split(",") if s]

@@ -1,5 +1,12 @@
 # siot_backend-reorganized
 This repo mainly serves as an interface to conform to the recommended repo layout required by the instructor.
+This repository contains the latest updates and progress for the Sports IoT project. All new features, experiments, and development work will be committed here to ensure that the original code base remains stable and intact.
+You can use this repository to:
+  Track ongoing development progress
+  Access the most recent versions of scripts, APIs, and Docker configurations
+  Test new features without affecting the original implementation
+  Note: The original code base is maintained separately. This repo serves as the main workspace for all updates and improvements.
+  Important: We are currently unsure if we are able to share the GitLab link publicly. Access may be restricted.
 
 # Getting started
 

@@ -1,0 +1,64 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+*.venv
+env/
+venv/
+Pipfile.lock
+
+# Arduino
+*.hex
+*.elf
+*.bin
+*.eep
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+
+# VSCode
+.vscode/
+
+# Build output
+dist/
+build/
+out/
+
+# Coverage
+coverage/
+
+# Misc
+*.tgz
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Local history
+.history/

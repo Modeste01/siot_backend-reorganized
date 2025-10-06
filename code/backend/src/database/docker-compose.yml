@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:17.2-bookworm
+    networks:
+      - shared-network
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: sportsIOT
+    ports:
+      - "9001:5432"
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d
+      - ./pgdata:/var/lib/postgresql/data
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    networks:
+      - shared-network
+    links:
+      - "db:database"
+    restart: unless-stopped
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    ports:
+      - "9002:80"
+    volumes:
+      - ./config/servers.json:/pgadmin4/servers.json
+
+networks:
+  shared-network:
+    name: siot_network
+    external: true

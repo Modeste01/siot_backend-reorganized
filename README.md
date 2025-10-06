@@ -1,27 +1,25 @@
 # siot_backend-reorganized
 This repo mainly serves as an interface to conform to the recommended repo layout required by the instructor.
 
-Getting started
+# Getting started
 
-Name
+# Name
 siot-backend : This includes the code and docker files for running the Sports IOT LLC database, scraper, and api components of the backend. Currently it also has a boilerplate for the websocket client on the Arduino side, but that is preliminary and will probably eventually be moved to its own repository.
 
-Description
+# Description
 In order to provide updates to our internet-connected sports memorabilia devices in an automated and timely manner, we need a system to track, store, and provide these updates to the devices. This repository is currently divides into three components for the backend and one component for the devices:
 
-Backend
-
+# Backend
 Scraper : This continuously gets updates from the stats.ncaa.org website, parses them, and extracts game events.
 DB : This database is set up to store all of the information about connected devices, teams, sports, and games.
 API : This component is built on top of FastAPI and provides connectivity both through regular REST endpoints and via websockets.
 
 
-Device
-
+# Device
 Arduino client : An example set of code for connecting to the API via websocket, registering the device with associated (UUID, team, sports), and then issuing async callbacks to the code using this project.
 
 
-Installation
+# Installation
 Everything is set up to run via Docker. However, during development and debugging, that often is cumbersome. So there is a single top-level docker-compose file that can be used, but I would recommend only bringing up the components that are in a pretty good state with DockerCompose and then run the rest from a terminal (inside of VSCode) for easy debugging and help from AI.
 
 
@@ -56,13 +54,13 @@ docker-compose -f composite-docker-compose.yml up db pgadmin
 
 For the scraper
 
-docker-compose -f composite-docker-compose.yml up scraper
+  docker-compose -f composite-docker-compose.yml up scraper
 
 
 
 Everything
 
-docker-compose -f composite-docker-compose.yml up
+  docker-compose -f composite-docker-compose.yml up
 
 
 All the standard rules about using -d to put in daemon mode
@@ -73,14 +71,14 @@ If running from the command line
 
 Make sure to have the python environment activated
 
-source env/bin/activate
+  source env/bin/activate
 
 
 
 Run a command to run the individual component
 
-cd scraper
-python scraper
+  cd scraper
+  python scraper
 
 
 
@@ -89,7 +87,7 @@ NOTE/TODO: I still don't know the right way to bring up the API, or if it is wor
 
 
 
-Roadmap
+# Roadmap
 I feel like the scraper and the database are in pretty good shape. It seems to capture and store the game status exactly as expected. Here is a list of items by category that could be improved/added:
 
 
@@ -122,5 +120,5 @@ Give a health monitor of the scraper software (detect crashes or exceptions in t
 
 
 
-License
+# License
 This code is copyright SportsIOT LLC 2025.
